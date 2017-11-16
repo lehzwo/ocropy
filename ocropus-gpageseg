@@ -348,6 +348,7 @@ def remove_hlines(binary,scale,maxsize=10):
 def compute_segmentation(binary,scale):
     """Given a binary image, compute a complete segmentation into
     lines, computing both columns and text lines."""
+    binary_img = binary
     binary = np.array(binary,'B')
 
     # start by removing horizontal black lines, which only
@@ -363,7 +364,6 @@ def compute_segmentation(binary,scale):
     bottom,top,boxmap = compute_gradmaps(binary,scale)
     seeds = compute_line_seeds(binary,bottom,top,colseps,scale)
     DSAVE("seeds",[bottom,top,boxmap])
-
     # spread the text line seeds to all the remaining
     # components
     if not args.quiet: print_info("propagating labels")
@@ -372,8 +372,38 @@ def compute_segmentation(binary,scale):
     spread = morph.spread_labels(seeds,maxdist=scale)
     llabels = np.where(llabels>0,llabels,spread*binary)
     segmentation = llabels*binary
+
+    regions = ocrolib.RegionExtractor()
+    regions.setPageLines(segmentation)
+    if args.debug:
+        DSAVE("lines",create_line_debug(regions, binary))
     return segmentation
 
+
+def create_line_debug(regions,binary):
+    height, width = binary.shape
+    lines_debug = np.zeros((height, width, 3), dtype=np.uint8)
+    color_intensity_val = 255
+    rgb_red=0
+    rgb_blue=2
+    for i in range(1,regions.length()):
+        bbox_y0,bbox_x0,bbox_y1,bbox_x1 = regions.bbox(i)
+        y0 = bbox_y0-1
+        x0 = bbox_x0-1
+        y1 = bbox_y1-1
+        x1 = bbox_x1-1
+        for x in range (x0,x1):
+            lines_debug[y0,x,rgb_red]=color_intensity_val
+            lines_debug[y1,x,rgb_red]=color_intensity_val
+            lines_debug[y0,x,rgb_blue]=color_intensity_val
+            lines_debug[y1,x,rgb_blue]=color_intensity_val
+        for y in range (y0,y1):
+            lines_debug[y,x0,rgb_red]=color_intensity_val
+            lines_debug[y,x1,rgb_red]=color_intensity_val
+            lines_debug[y,x0,rgb_blue]=color_intensity_val
+            lines_debug[y,x1,rgb_blue]=color_intensity_val
+    return lines_debug
+    #TODO return [lines_debug + binary]
 
 ################################################################
 ### Processing each file.
