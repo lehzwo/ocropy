@@ -383,6 +383,11 @@ def compute_segmentation(binary,scale):
 def create_line_debug(regions,binary):
     height, width = binary.shape
     lines_debug = np.zeros((height, width, 3), dtype=np.uint8)
+    select_indices = np.where( binary == 1 )
+    coordinates = tuple(zip(*select_indices))
+    for coord in coordinates:
+        print_rgb_dot(lines_debug,coord[0],coord[1],(100,100,100))
+    print (coordinates[0])
     color_rgb = (255,0,255)
     for i in range(1,regions.length()):
         normalized_bbox = extract_normalized_bbox(regions,i)
