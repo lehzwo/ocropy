@@ -19,6 +19,8 @@ import os
 import os.path
 import sys
 import traceback
+import random
+import time
 from multiprocessing import Pool
 
 import numpy as np
@@ -381,20 +383,38 @@ def compute_segmentation(binary,scale):
 
 
 def create_line_debug(regions,binary):
-    height, width = binary.shape
+    height,width = binary.shape
     lines_debug = np.zeros((height, width, 3), dtype=np.uint8)
-    select_indices = np.where( binary == 1 )
-    coordinates = tuple(zip(*select_indices))
-    for coord in coordinates:
-        print_rgb_dot(lines_debug,coord[0],coord[1],(100,100,100))
-    print (coordinates[0])
-    color_rgb = (255,0,255)
+    draw_2d_array_highlights_as_grey_rgb(lines_debug,binary)
     for i in range(1,regions.length()):
         normalized_bbox = extract_normalized_bbox(regions,i)
-        draw_vertical_normalized_bbox_lines(lines_debug,normalized_bbox,color_rgb,height/500)
-        draw_horizontal_normalized_bbox_lines(lines_debug,normalized_bbox,color_rgb,width/500)
+        draw_widened_normalized_bbox(lines_debug,normalized_bbox)
     return lines_debug
-    #TODO return [lines_debug + binary]
+
+
+def draw_2d_array_highlights_as_grey_rgb(rgb_arr,binary_arr):
+    select_indices = np.where(binary_arr == 1)
+    coordinates = tuple(zip(*select_indices))
+    for coord in coordinates:
+        print_rgb_dot(rgb_arr,coord[0],coord[1],(100,100,100))
+
+
+def draw_widened_normalized_bbox(arr,normalized_bbox):
+    height,width,_ = arr.shape
+    color_rgb = rgb_color_randomizer()
+    border_height_thikness = height/750
+    border_width_thikness = width/750
+    y0 = normalized_bbox[0]
+    x0 = normalized_bbox[1]
+    y1 = normalized_bbox[2]
+    x1 = normalized_bbox[3]
+    for i in range(0,border_height_thikness):
+        draw_horizontal_line(arr,x0-border_width_thikness+1,x1+border_width_thikness-1,y0-i,color_rgb)
+        draw_horizontal_line(arr,x0-border_width_thikness+1,x1+border_width_thikness-1,y1+i,color_rgb)
+    for i in range(0,border_width_thikness):
+        draw_vertical_line(arr,y0,y1,x0-i,color_rgb)
+        draw_vertical_line(arr,y0,y1,x1+i,color_rgb)
+
 
 def extract_normalized_bbox(regions,i):
     bbox_y0,bbox_x0,bbox_y1,bbox_x1 = regions.bbox(i)
@@ -404,38 +424,32 @@ def extract_normalized_bbox(regions,i):
     x1 = bbox_x1-1
     return (y0,x0,y1,x1)
 
-def draw_vertical_normalized_bbox_lines(arr,normalized_bbox,color_rgb,line_thikness):
-    height,_,_ = arr.shape
-    y0 = normalized_bbox[0]
-    x0 = normalized_bbox[1]
-    y1 = normalized_bbox[2]
-    x1 = normalized_bbox[3]
-    for x in range (x0,x1):
-        for i in range(0,line_thikness-1):
-            y0_widened = y0+i
-            y1_widened = y1+i
-            if y0_widened < height-1:
-                print_rgb_dot(arr,y0_widened,x,color_rgb)
-            if y1_widened < height-1:
-                print_rgb_dot(arr,y1_widened,x,color_rgb)
 
-def draw_horizontal_normalized_bbox_lines(arr,normalized_bbox,color_rgb,line_thikness):
-    _,width,_ = arr.shape
-    y0 = normalized_bbox[0]
-    x0 = normalized_bbox[1]
-    y1 = normalized_bbox[2]
-    x1 = normalized_bbox[3]
-    for y in range (y0,y1):
-        for i in range(0,line_thikness-1):
-            x0_widened = x0+i
-            x1_widened = x1+i
-            if x0+i < width-1:
-                print_rgb_dot(arr,y,x0_widened,color_rgb)
-            if x1+i < width-1:
-                print_rgb_dot(arr,y,x1_widened,color_rgb)
+def draw_vertical_line(arr,y0,y1,x,color_rgb):
+    height,width,_ = arr.shape
+    if(x >= width):
+        return
+    for y in range (y0,y1+1):
+        if y < height-1:
+            print_rgb_dot(arr,y,x,color_rgb)
 
 
-#prints a rgb colored dot to an array of depth 3
+def draw_horizontal_line(arr,x0,x1,y,color_rgb):
+    height,width,_ = arr.shape
+    if(y >= height):
+        return
+    for x in range (x0,x1+1):
+        if x < width-1:
+            print_rgb_dot(arr,y,x,color_rgb)
+
+
+def rgb_color_randomizer():
+    r = random.randint(100, 150)
+    g = random.randint(100, 150)
+    b = random.randint(100, 150)
+    return (r,g,b)
+
+
 def print_rgb_dot(arr,y,x,color_rgb):
     arr[y,x,0] = color_rgb[0]
     arr[y,x,1] = color_rgb[1]
